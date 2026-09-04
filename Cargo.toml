@@ -1,0 +1,8 @@
+[package]
+name = "imgmeta"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Read basic image metadata (dimensions, format) without external dependencies"
+
+[dependencies]
