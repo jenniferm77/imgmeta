@@ -27,6 +27,7 @@ pub(crate) fn read_info(data: &[u8]) -> Result<ImageInfo, MetadataError> {
     }
 
     let mut pos = 2; // past the SOI marker checked by is_jpeg
+    let mut exif = None;
     loop {
         if pos + 1 >= data.len() {
             return Err(MetadataError::Truncated);
@@ -53,6 +54,20 @@ pub(crate) fn read_info(data: &[u8]) -> Result<ImageInfo, MetadataError> {
             return Err(MetadataError::Malformed("segment length too small"));
         }
 
+        // APP1 segments hold Exif data when their payload starts with the
+        // "Exif\0\0" marker. Only the first one counts; a JPEG can carry a
+        // second APP1 for XMP, which we don't parse.
+        if marker == 0xE1 && exif.is_none() {
+            let payload_start = pos + 2;
+            let payload_end = (pos + seg_len).min(data.len());
+            const EXIF_PREFIX: &[u8] = b"Exif\0\0";
+            if payload_end >= payload_start + EXIF_PREFIX.len()
+                && &data[payload_start..payload_start + EXIF_PREFIX.len()] == EXIF_PREFIX
+            {
+                exif = crate::exif::parse(&data[payload_start + EXIF_PREFIX.len()..payload_end]);
+            }
+        }
+
         if is_sof(marker) {
             // Layout after the length field: 1 byte sample precision,
             // 2 bytes height, 2 bytes width.
@@ -66,6 +81,7 @@ pub(crate) fn read_info(data: &[u8]) -> Result<ImageInfo, MetadataError> {
                 format: Format::Jpeg,
                 width: width as u32,
                 height: height as u32,
+                exif,
             });
         }
 
@@ -115,5 +131,40 @@ mod tests {
         bytes.extend_from_slice(&minimal_jpeg(100, 50)[2..]);
         let info = read_info(&bytes).unwrap();
         assert_eq!((info.width, info.height), (100, 50));
+    }
+
+    #[test]
+    fn reads_orientation_from_app1_exif_segment() {
+        // Minimal Exif block: TIFF header + one-entry IFD0 with Orientation.
+        let mut tiff = Vec::new();
+        tiff.extend_from_slice(b"II");
+        tiff.extend_from_slice(&42u16.to_le_bytes());
+        tiff.extend_from_slice(&8u32.to_le_bytes());
+        tiff.extend_from_slice(&1u16.to_le_bytes());
+        tiff.extend_from_slice(&0x0112u16.to_le_bytes()); // Orientation tag
+        tiff.extend_from_slice(&3u16.to_le_bytes()); // type SHORT
+        tiff.extend_from_slice(&1u32.to_le_bytes());
+        tiff.extend_from_slice(&[6, 0, 0, 0]);
+        tiff.extend_from_slice(&0u32.to_le_bytes());
+
+        let mut app1_payload = b"Exif\0\0".to_vec();
+        app1_payload.extend_from_slice(&tiff);
+
+        let mut bytes = vec![0xFF, 0xD8];
+        bytes.extend_from_slice(&[0xFF, 0xE1]); // APP1
+        bytes.extend_from_slice(&((app1_payload.len() + 2) as u16).to_be_bytes());
+        bytes.extend_from_slice(&app1_payload);
+        bytes.extend_from_slice(&minimal_jpeg(320, 240)[2..]);
+
+        let info = read_info(&bytes).unwrap();
+        assert_eq!((info.width, info.height), (320, 240));
+        assert_eq!(info.exif.unwrap().orientation, Some(6));
+    }
+
+    #[test]
+    fn no_app1_segment_means_no_exif() {
+        let data = minimal_jpeg(10, 10);
+        let info = read_info(&data).unwrap();
+        assert_eq!(info.exif, None);
     }
 }

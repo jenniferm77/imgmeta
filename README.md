@@ -53,17 +53,26 @@ match imgmeta::read_info(&data) {
 
 ## Supported formats
 
-- JPEG (dimensions from the SOF0/SOF2/... marker)
+- JPEG (dimensions from the SOF0/SOF2/... marker; orientation and timestamp
+  from the first APP1 Exif segment, if present)
 - PNG (dimensions from the IHDR chunk)
 
 Anything else returns `MetadataError::UnknownFormat`.
 
+For JPEG, `ImageInfo::exif` is `Some` when the file has an APP1 segment
+starting with the Exif TIFF header and it yields at least an orientation or
+a timestamp. `orientation` is the raw 1-8 Exif value (left undecoded, since
+turning that into an actual rotation/flip depends on what the caller is
+doing with the pixels). `timestamp` prefers `DateTimeOriginal` (when the
+photo was taken) and falls back to `DateTime` (when the file was saved),
+formatted as Exif stores it, `"YYYY:MM:DD HH:MM:SS"`.
+
 ## Status
 
-Early. Dimensions and format detection work and are tested. EXIF
-orientation/timestamp/GPS extraction, GIF and WebP support, and streaming
-input (for reading over a network without buffering the whole header)
-are not implemented yet.
+Early. Dimensions, format detection, and JPEG orientation/timestamp work
+and are tested. GPS coordinate extraction, GIF and WebP support, and
+streaming input (for reading over a network without buffering the whole
+header) are not implemented yet.
 
 ## License
 

@@ -39,6 +39,7 @@ pub(crate) fn read_info(data: &[u8]) -> Result<ImageInfo, MetadataError> {
         format: Format::Png,
         width,
         height,
+        exif: None,
     })
 }
 

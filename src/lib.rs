@@ -1,13 +1,16 @@
-//! Reads basic image metadata (format, pixel dimensions) directly from the
-//! byte header of an image, without decoding pixels and without any
-//! external dependencies.
+//! Reads basic image metadata (format, pixel dimensions, and for JPEG a
+//! subset of Exif) directly from the byte header of an image, without
+//! decoding pixels and without any external dependencies.
 //!
 //! Currently supported: JPEG, PNG. Both formats keep dimensions in a fixed
 //! spot near the start of the file, so this never needs to read more than a
 //! few kilobytes even for a multi-megabyte photo.
 
+mod exif;
 mod jpeg;
 mod png;
+
+pub use exif::ExifData;
 
 /// Image container format, as identified by the file's own magic bytes
 /// (not by file extension).
@@ -18,11 +21,14 @@ pub enum Format {
 }
 
 /// The subset of metadata we currently know how to extract.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImageInfo {
     pub format: Format,
     pub width: u32,
     pub height: u32,
+    /// Exif metadata, when present. Currently only ever `Some` for JPEG;
+    /// the PNG header region this crate reads doesn't carry Exif data.
+    pub exif: Option<ExifData>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
