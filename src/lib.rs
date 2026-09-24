@@ -10,7 +10,7 @@ mod exif;
 mod jpeg;
 mod png;
 
-pub use exif::ExifData;
+pub use exif::{ExifData, GpsCoords};
 
 /// Image container format, as identified by the file's own magic bytes
 /// (not by file extension).
@@ -21,7 +21,7 @@ pub enum Format {
 }
 
 /// The subset of metadata we currently know how to extract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ImageInfo {
     pub format: Format,
     pub width: u32,

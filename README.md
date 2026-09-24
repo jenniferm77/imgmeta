@@ -53,26 +53,29 @@ match imgmeta::read_info(&data) {
 
 ## Supported formats
 
-- JPEG (dimensions from the SOF0/SOF2/... marker; orientation and timestamp
-  from the first APP1 Exif segment, if present)
+- JPEG (dimensions from the SOF0/SOF2/... marker; orientation, timestamp,
+  and GPS coordinates from the first APP1 Exif segment, if present)
 - PNG (dimensions from the IHDR chunk)
 
 Anything else returns `MetadataError::UnknownFormat`.
 
 For JPEG, `ImageInfo::exif` is `Some` when the file has an APP1 segment
-starting with the Exif TIFF header and it yields at least an orientation or
-a timestamp. `orientation` is the raw 1-8 Exif value (left undecoded, since
-turning that into an actual rotation/flip depends on what the caller is
-doing with the pixels). `timestamp` prefers `DateTimeOriginal` (when the
-photo was taken) and falls back to `DateTime` (when the file was saved),
-formatted as Exif stores it, `"YYYY:MM:DD HH:MM:SS"`.
+starting with the Exif TIFF header and it yields at least an orientation, a
+timestamp, or GPS coordinates. `orientation` is the raw 1-8 Exif value (left
+undecoded, since turning that into an actual rotation/flip depends on what
+the caller is doing with the pixels). `timestamp` prefers `DateTimeOriginal`
+(when the photo was taken) and falls back to `DateTime` (when the file was
+saved), formatted as Exif stores it, `"YYYY:MM:DD HH:MM:SS"`. `gps`, when
+the file's GPS IFD has both a latitude and longitude, gives decimal degrees
+(`GpsCoords`), positive north and east, with sign already applied from the
+ref tags so you don't need to interpret "N"/"S"/"E"/"W" yourself.
 
 ## Status
 
-Early. Dimensions, format detection, and JPEG orientation/timestamp work
-and are tested. GPS coordinate extraction, GIF and WebP support, and
-streaming input (for reading over a network without buffering the whole
-header) are not implemented yet.
+Early. Dimensions, format detection, and JPEG orientation/timestamp/GPS
+work and are tested. GIF and WebP support, and streaming input (for
+reading over a network without buffering the whole header) are not
+implemented yet.
 
 ## License
 
